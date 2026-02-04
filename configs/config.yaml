@@ -1,0 +1,20 @@
+# configs/config.yaml
+project_name: "Violence Action Detection"
+version: "0.1.0-alpha"
+
+system:
+  device: "cuda"           # Options: cuda, cpu, mps
+  log_level: "INFO"        # Options: DEBUG, INFO, WARNING, ERROR
+  display_resolution: [1280, 720]
+
+paths:
+  input_source: "data/inputs/test_video.mp4"
+  output_dir: "data/outputs/"
+  model_dir: "models/"
+
+# Phase 1 Settings
+detection:
+  model_weights: "yolov12n.pt"
+  confidence_threshold: 0.5
+  iou_threshold: 0.45
+  target_classes: [0]      # COCO ID 0 = Person
