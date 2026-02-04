@@ -1,0 +1,27 @@
+# .gitignore
+
+# 1. Python Artifacts (Junk)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# 2. Large Data Files (NEVER commit these)
+data/inputs/*
+data/outputs/*
+!data/inputs/.gitkeep
+!data/outputs/.gitkeep
+
+# 3. Model Weights (Too big for GitHub)
+models/*.pt
+models/*.pth
+models/*.bin
+
+# 4. Evidence/Logs
+evidence/*
+logs/*
+
+# 5. IDE Settings
+.vscode/
+.idea/
