@@ -4,7 +4,7 @@ from src.utils.config_loader import cfg
 from src.utils.logger import logger
 from src.utils.video_io import VideoStream
 from src.utils.visualization import Visualizer
-from src.core.detector import Detector
+from src.core.perception.detector import Detector
 
 def main():
     logger.info("--- Phase 1: Detection & Tracking System Starting ---")
