@@ -14,7 +14,7 @@ paths:
 
 # Phase 1 Settings
 detection:
-  model_weights: "yolov8n.pt" #TODO: will replace with v12n lated
+  model_weights: "models/yolov8n.pt" #TODO: will replace with v12n lated
   confidence_threshold: 0.5
   iou_threshold: 0.45
   target_classes: [0]      # COCO ID 0 = Person
