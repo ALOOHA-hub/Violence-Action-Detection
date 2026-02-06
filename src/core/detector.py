@@ -20,9 +20,9 @@ class Detector:
             self.model.to(self.device)
             
             # OPTIMIZATION: Use FP16 (Half Precision) for RTX 3050 Ti
-            if self.device == 'cuda':
-                self.model.model.half() 
-                logger.info("FP16 (Half-Precision) Enabled for VRAM optimization.")
+            # if self.device == 'cuda':
+            #     self.model.model.half() 
+            #     logger.info("FP16 (Half-Precision) Enabled for VRAM optimization.")
             
             # Warmup (prevents lag on first frame)
             self.model(torch.zeros(1, 3, 640, 640).to(self.device).half() if self.device == 'cuda' else torch.zeros(1, 3, 640, 640))
