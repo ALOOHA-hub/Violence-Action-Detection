@@ -1,0 +1,35 @@
+# --- Critical: PyTorch with CUDA 12.1 Support ---
+# This line forces pip to download from the Nvidia server instead of the default one
+--index-url https://download.pytorch.org/whl/cu121
+
+# --- Core Math & Image Processing ---
+numpy>=1.24.0          # The backbone of all matrix operations (LogOIC math)
+opencv-python>=4.8.0   # Video decoding/encoding and image resizing
+
+# --- Deep Learning Engine ---
+torch>=2.1.0           # PyTorch: Required for all models
+torchvision>=0.16.0    # Helper for image transforms
+torchaudio>=2.1.0      # Standard PyTorch audio library
+
+# --- Phase 1: Detection & Tracking ---
+ultralytics>=8.1.0     # The fastest wrapper for YOLO models (supports v8-v12)
+supervision>=0.18.0    # Roboflow's library. Contains a pre-built ByteTrack implementation.
+                       # WHY: Writing ByteTrack from scratch is error-prone. This is optimized.
+
+# --- Phase 2: Action Recognition ---
+open_clip_torch>=2.24  # Provides the pre-trained CoCa model for FreeZAD.
+                       # WHY: Better than standard CLIP for video tasks.
+
+# --- Phase 3: The Brain (CoVT) ---
+transformers>=4.37.0   # Hugging Face library to load Qwen2.5-VL
+accelerate>=0.26.0     # Required to offload layers to CPU if GPU is full
+bitsandbytes>=0.41.0   # CRITICAL: Allows 4-bit quantization.
+                       # WHY: Reduces VRAM usage of Qwen from 16GB to 4GB.
+einops                 # Required by Qwen for tensor rearranging
+timm                   # Required by DepthAnything V2
+
+# --- System Utilities ---
+pyyaml                 # To read config.yaml
+scipy                  # For the FFT (Fast Fourier Transform) in FreeZAD calibration
+tqdm                   # Progress bars
+colorama               # Colored terminal output
