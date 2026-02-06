@@ -1,68 +1,10 @@
-import cv2
-import time
 from src.utils.config_loader import cfg
-from src.utils.logger import logger
-from src.utils.video_io import VideoStream
-from src.utils.visualization import Visualizer
-from src.core.perception.detector import Detector
-
-def main():
-    logger.info("--- Phase 1: Detection & Tracking System Starting ---")
-
-    # 1. Setup
-    video_path = cfg['paths']['input_source']
-    
-    # Get Display Resolution from Config
-    # If not found in config, default to 1280x720
-    display_res = cfg.get('system', {}).get('display_resolution', [1280, 720])
-    display_w, display_h = display_res[0], display_res[1]
-
-    # Initialize Core Components
-    stream = VideoStream(video_path).start()
-    detector = Detector()
-    visualizer = Visualizer()
-
-    logger.info(f"System Ready. Display resizing to: {display_w}x{display_h}")
-    
-    # Performance Monitoring
-    fps_start = time.time()
-    frame_count = 0
-
-    try:
-        while stream.running():
-            # 2. Get Frame (Non-blocking)
-            frame = stream.read()
-            if frame is None: break
-
-            # 3. Detect & Track (The AI)
-            detections = detector.process_frame(frame)
-
-            # 4. Visualize (The Output)
-            output_frame = visualizer.draw(frame, detections)
-
-            # 5. Display (Resize to fit screen)
-            # This is the FIX: Resize the output frame before showing it
-            display_frame = cv2.resize(output_frame, (display_w, display_h))
-            
-            cv2.imshow("SentinAI - Phase 1", display_frame)
-            
-            # FPS Calc
-            frame_count += 1
-            if frame_count % 30 == 0:
-                elapsed = time.time() - fps_start
-                logger.info(f"FPS: {30/elapsed:.2f} | Active Tracks: {len(detections)}")
-                fps_start = time.time()
-
-            # Exit logic (Press 'q')
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-    except KeyboardInterrupt:
-        logger.info("Stopping system...")
-    finally:
-        stream.stop()
-        cv2.destroyAllWindows()
-        logger.info("System Shutdown Complete.")
+from src.pipelines.rapid_flow import RapidPipeline
 
 if __name__ == "__main__":
-    main()
+    # Get video path from config
+    video_path = cfg['paths']['input_source']
+    
+    # Initialize and Run
+    app = RapidPipeline()
+    app.run(video_path)
