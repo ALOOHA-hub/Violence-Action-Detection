@@ -8,7 +8,7 @@ system:
   display_resolution: [1280, 720]
 
 paths:
-  input_source: "data/inputs/test_video.mp4"
+  input_source: "data/inputs/test_video 1.mp4"
   output_dir: "data/outputs/"
   model_dir: "models/"
 
