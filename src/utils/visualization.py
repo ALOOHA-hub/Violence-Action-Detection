@@ -5,11 +5,11 @@ class Visualizer:
     def __init__(self):
         # Create annotators for Boxes and Labels
         self.box_annotator = sv.BoxAnnotator(
-            thickness=2
+            thickness=3
         )
         self.label_annotator = sv.LabelAnnotator(
-            text_scale=0.5,
-            text_thickness=1,
+            text_scale=3,
+            text_thickness=2,
             text_padding=5
         )
 

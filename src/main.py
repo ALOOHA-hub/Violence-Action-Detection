@@ -12,12 +12,17 @@ def main():
     # 1. Setup
     video_path = cfg['paths']['input_source']
     
+    # Get Display Resolution from Config
+    # If not found in config, default to 1280x720
+    display_res = cfg.get('system', {}).get('display_resolution', [1280, 720])
+    display_w, display_h = display_res[0], display_res[1]
+
     # Initialize Core Components
     stream = VideoStream(video_path).start()
     detector = Detector()
     visualizer = Visualizer()
 
-    logger.info("System Ready. Processing video...")
+    logger.info(f"System Ready. Display resizing to: {display_w}x{display_h}")
     
     # Performance Monitoring
     fps_start = time.time()
@@ -35,8 +40,11 @@ def main():
             # 4. Visualize (The Output)
             output_frame = visualizer.draw(frame, detections)
 
-            # 5. Display
-            cv2.imshow("SentinAI - Phase 1", output_frame)
+            # 5. Display (Resize to fit screen)
+            # This is the FIX: Resize the output frame before showing it
+            display_frame = cv2.resize(output_frame, (display_w, display_h))
+            
+            cv2.imshow("SentinAI - Phase 1", display_frame)
             
             # FPS Calc
             frame_count += 1
