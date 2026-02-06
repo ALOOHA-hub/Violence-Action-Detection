@@ -18,3 +18,23 @@ detection:
   confidence_threshold: 0.5
   iou_threshold: 0.45
   target_classes: [0]      # COCO ID 0 = Person
+
+# Phase 2: Action Recognition (FreeZAD)
+action:
+  # The window size (Time). 16 frames is the standard for video clips.
+  window_size: 16
+  # We don't need to analyze every single frame. We skip every 2nd frame to save GPU.
+  stride: 2
+  # Sensitivity. If score > 0.75, it's a fight.
+  threshold: 0.75
+  # The text prompts FreeZAD will search for
+  prompts:
+    - "a person punching"
+    - "people fighting"
+    - "kicking someone"
+    - "person falling down"
+    - "shooting with gun"
+    - "beating someone"
+    - "injured"
+    - "normal walking"    # Background class
+    - "standing still"    # Background class
