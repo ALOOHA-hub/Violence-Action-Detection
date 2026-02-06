@@ -21,6 +21,11 @@ detection:
 
 # Phase 2: Action Recognition (FreeZAD)
 action:
+  # Model Architecture Name (Must match OpenCLIP library names)
+  model_name: "coca_ViT-L-14"
+  
+  # Path to the .bin file you just downloaded
+  weights_path: "models/coca_l14.bin"
   # The window size (Time). 16 frames is the standard for video clips.
   window_size: 16
   # We don't need to analyze every single frame. We skip every 2nd frame to save GPU.

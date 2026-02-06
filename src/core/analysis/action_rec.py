@@ -3,20 +3,27 @@ import open_clip
 import torch.nn.functional as F
 from PIL import Image
 from src.utils.logger import logger
-from src.utils.config_loader import cfg
+# --- CRITICAL IMPORT: This allows us to read config.yaml ---
+from src.utils.config_loader import cfg 
 
 class ActionRecognizer:
     def __init__(self):
         self.device = cfg['system']['device']
         
-        # 1. Load the Model (CoCa - Contrastive Captioner)
-        # This model is 'Zero-Shot'. It knows what 'fighting' looks like without training.
-        model_name = 'coca_ViT-L-14'
-        pretrained = 'mscoco_finetuned_laion2B-s13B-b90k'
+        # 1. Load Settings from Config
+        # We use .get() to avoid crashing if the key is missing
+        # This will look for "coca_ViT-L-14"
+        model_name = cfg['action'].get('model_name', 'coca_ViT-L-14')
         
+        # This will look for "models/coca_l14.bin"
+        pretrained = cfg['action'].get('weights_path', 'models/coca_l14.bin')
+
         logger.info(f"Loading Phase 2 Model: {model_name}...")
+        logger.info(f"Using weights from: {pretrained}")
         
         try:
+            # 2. Initialize Model
+            # We point 'pretrained' to your local .bin file
             self.model, _, self.preprocess = open_clip.create_model_and_transforms(
                 model_name, 
                 pretrained=pretrained,
@@ -29,8 +36,7 @@ class ActionRecognizer:
             logger.critical(f"Failed to load OpenCLIP: {e}")
             raise e
 
-        # 2. Prepare the Prompts
-        # We read the list ["punching", "walking"...] from config
+        # 3. Prepare the Prompts
         self.prompts = cfg['action']['prompts']
         self.text_embeddings = self._encode_text(self.prompts)
         logger.info(f"Monitoring actions: {self.prompts}")
