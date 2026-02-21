@@ -105,6 +105,13 @@ class RapidPipeline:
         disp_w, disp_h = cfg['system'].get('display_resolution', [1280, 720])
         logger.info(f"Pipeline started. Recording to {out_path}")
         
+        # --- SWE UI FIX: Responsive Window Rendering ---
+        # 1. Create a resizable window that forces the aspect ratio to stay perfect
+        cv2.namedWindow("SentinAI Async System", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+        
+        # 2. Set the default UI window size
+        cv2.resizeWindow("SentinAI Async System", disp_w, disp_h)
+
         try:
             while True:
                 ret, frame = cap.read()
@@ -132,8 +139,8 @@ class RapidPipeline:
                 cv2.circle(out_frame, (30, 30), 10, status_color, -1) 
 
                 out_writer.write(out_frame)
-                disp_frame = cv2.resize(out_frame, (disp_w, disp_h))
-                cv2.imshow("SentinAI Async System", disp_frame)
+                
+                cv2.imshow("SentinAI Async System", out_frame)
                 
                 if cv2.waitKey(1) & 0xFF == ord('q'): break
                 
