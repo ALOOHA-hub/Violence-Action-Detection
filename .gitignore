@@ -13,6 +13,7 @@ data/outputs/*
 data/save/*
 data/safe/*
 data/violent/*
+data/dataset/*
 !data/inputs/.gitkeep
 !data/outputs/.gitkeep
 

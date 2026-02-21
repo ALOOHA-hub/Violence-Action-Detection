@@ -14,7 +14,6 @@ from src.core.perception.detector import Detector
 from src.core.memory.evidence import EvidenceManager
 from src.core.analysis.action_rec import ActionRecognizer
 from src.core.analysis.vlm_reasoner import IncidentReasoner
- json
 
 class RapidPipeline:
     def __init__(self):

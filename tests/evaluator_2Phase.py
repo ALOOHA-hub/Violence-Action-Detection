@@ -81,8 +81,29 @@ class ThesisEvaluator:
         total_frames = 0
         total_time = 0.0
         
+        # --- SWE FIX: Robust File Discovery & Validation ---
+        violent_dir = os.path.join(self.dataset_path, "violent")
+        safe_dir = os.path.join(self.dataset_path, "safe")
+        
+        if not os.path.exists(violent_dir) or not os.path.exists(safe_dir):
+            logger.error(f"Dataset folders missing! Looked for: {violent_dir} and {safe_dir}")
+            return
+            
+        # Support multiple video formats
+        violent_vids = []
+        safe_vids = []
+        for ext in ('*.mp4', '*.MP4', '*.avi', '*.AVI', '*.mkv'):
+            violent_vids.extend(glob(os.path.join(violent_dir, ext)))
+            safe_vids.extend(glob(os.path.join(safe_dir, ext)))
+
+        if len(violent_vids) == 0 and len(safe_vids) == 0:
+            logger.error(f"No videos found! Check if files are directly inside {violent_dir} and {safe_dir}.")
+            return
+            
+        logger.info(f"Found {len(violent_vids)} violent videos and {len(safe_vids)} safe videos. Starting...")
+        # --------------------------------------------------
+        
         # 1. Test Violent Videos (Should trigger alert)
-        violent_vids = glob(os.path.join(self.dataset_path, "violent", "*.mp4"))
         for vid in violent_vids:
             logger.info(f"Testing Violent Video: {os.path.basename(vid)}")
             alerted, frames, p_time = self.process_video(vid)
@@ -92,7 +113,6 @@ class ThesisEvaluator:
             else: results["FN"] += 1        # False Negative
 
         # 2. Test Safe Videos (Should NOT trigger alert)
-        safe_vids = glob(os.path.join(self.dataset_path, "safe", "*.mp4"))
         for vid in safe_vids:
             logger.info(f"Testing Safe Video: {os.path.basename(vid)}")
             alerted, frames, p_time = self.process_video(vid)
@@ -101,7 +121,8 @@ class ThesisEvaluator:
             if alerted: results["FP"] += 1  # False Positive
             else: results["TN"] += 1        # True Negative
 
-        self._generate_report(results, total_frames, total_time)
+        if total_frames > 0:
+            self._generate_report(results, total_frames, total_time)
 
     def _generate_report(self, res, frames, p_time):
         TP, FP, TN, FN = res["TP"], res["FP"], res["TN"], res["FN"]
