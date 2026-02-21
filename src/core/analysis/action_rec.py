@@ -90,16 +90,22 @@ class ActionRecognizer:
             image_features /= image_features.norm(dim=-1, keepdim=True)
 
             # 3. Calculate Similarity (The Dot Product)
-            # This compares every frame against every text prompt
-            # Result shape: [16 frames, num_prompts]
-            similarity = (100.0 * image_features @ self.text_embeddings.T)
-            
+            raw_similarity = image_features @ self.text_embeddings.T   
+            scaled_similarity = 100.0 * raw_similarity
             # 4. Softmax to get percentages (0.0 to 1.0)
-            probs = F.softmax(similarity, dim=-1)
-            
+            probs = F.softmax(scaled_similarity, dim=-1)            
             # 5. Aggregate (Take the average score across the 16 frames)
             avg_scores = probs.mean(dim=0).cpu().numpy()
+            max_raw_sim = raw_similarity.mean(dim=0).max().item()
             
         # Map scores back to text labels
         result = {prompt: score for prompt, score in zip(self.prompts, avg_scores)}
+        # --- THE OSR GATEKEEPER ---
+        # If the highest raw similarity is too low, the model is guessing blindly.
+        # We override the result and force it into a safe "unknown" state.
+        osr_thresh = cfg['action'].get('osr_threshold', 0.25)
+        if max_raw_sim < osr_thresh:
+           # Return a dummy result that forces the State Machine into IDLE
+            return {"unknown/safe (OSR filtered)": 1.0}
+
         return result

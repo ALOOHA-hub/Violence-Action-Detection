@@ -32,6 +32,7 @@ action:
   stride: 4
   # Sensitivity. If score > 0.75, it's a fight.
   threshold: 0.75
+  ors_threshold: 0.25
   # The text prompts FreeZAD will search for
   prompts:
    - "a person punching"
