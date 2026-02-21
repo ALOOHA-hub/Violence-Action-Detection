@@ -3,6 +3,8 @@ import queue
 import threading
 import os
 import time
+import json
+
 from collections import deque
 from src.utils.logger import logger
 from src.utils.config_loader import cfg
@@ -11,6 +13,8 @@ from src.utils.visualization import Visualizer
 from src.core.perception.detector import Detector
 from src.core.memory.evidence import EvidenceManager
 from src.core.analysis.action_rec import ActionRecognizer
+from src.core.analysis.vlm_reasoner import IncidentReasoner
+ json
 
 class RapidPipeline:
     def __init__(self):
@@ -20,6 +24,10 @@ class RapidPipeline:
         self.memory = EvidenceManager()
         self.visualizer = Visualizer()
         self.brain = ActionRecognizer() 
+
+        # --- THE NEW PHASE 3 PIPELINE ---
+        self.vlm = IncidentReasoner()
+        self.vlm_queue = queue.Queue()
         
         self.conf_threshold = cfg['action']['threshold']
         self.alert_trigger_count = cfg['action'].get('alert_trigger_count', 3)
@@ -40,6 +48,9 @@ class RapidPipeline:
         # Start Background Worker
         self.worker_thread = threading.Thread(target=self._analysis_worker, daemon=True)
         self.worker_thread.start()
+
+        self.vlm_thread = threading.Thread(target=self._vlm_worker, daemon=True)
+        self.vlm_thread.start()
 
         # --- SWE ARCHITECTURE: Incident Recording Settings ---
         self.record_incidents = cfg['system'].get('record_incident', True)
@@ -163,6 +174,9 @@ class RapidPipeline:
                         self.is_recording_incident = False
                         logger.info("Incident recording finalized.")
 
+                        # --- TRIGGER PHASE 3 ---
+                        self.vlm_queue.put(incident_path)
+
                 # UI Indicators
                 status_color = (0, 165, 255) if not self.analysis_queue.empty() else (0, 255, 0)
                 if self.is_recording_incident: status_color = (0, 0, 255) # Red for recording
@@ -177,3 +191,33 @@ class RapidPipeline:
             if self.incident_writer: self.incident_writer.release()
             cv2.destroyAllWindows()
             logger.info("System shutdown complete.")
+
+
+    def _vlm_worker(self):
+            """Phase 3 Consumer: Runs deep reasoning on saved incident clips without blocking the camera."""
+            while self.running:
+                try:
+                    # Wait for Phase 2 to hand off a completed video path
+                    incident_path = self.vlm_queue.get(timeout=1.0)
+                    logger.info(f"VLM Pipeline activated. Analyzing: {incident_path}")
+                    
+                    # Run the heavy CoVT reasoning
+                    report = self.vlm.analyze_incident(incident_path)
+                    
+                    # Save the JSON report right next to the video file
+                    report_path = incident_path.replace('.mp4', '_report.json')
+                    with open(report_path, 'w') as f:
+                        json.dump(report, f, indent=4)
+                    
+                    # Print the final verdict to the terminal!
+                    threat = report.get('threat_level', 'UNKNOWN')
+                    classification = report.get('final_classification', 'Unclassified')
+                    logger.warning(f"🚨 PHASE 3 VERDICT [{threat}]: {classification}")
+                    logger.info(f"Full report saved to: {report_path}")
+                    
+                    self.vlm_queue.task_done()
+
+                except queue.Empty:
+                    continue
+                except Exception as e:
+                    logger.error(f"VLM Worker Error: {e}")

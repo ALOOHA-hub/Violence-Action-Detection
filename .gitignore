@@ -10,6 +10,9 @@ venv/
 # 2. Large Data Files (NEVER commit these)
 data/inputs/*
 data/outputs/*
+data/save/*
+data/safe/*
+data/violent/*
 !data/inputs/.gitkeep
 !data/outputs/.gitkeep
 
