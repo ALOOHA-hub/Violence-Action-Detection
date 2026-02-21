@@ -1,125 +1,114 @@
 import cv2
 import queue
 import threading
-import time
 import os
 from src.utils.logger import logger
 from src.utils.config_loader import cfg
 from src.utils.visualization import Visualizer
 
-# Import our modular components
 from src.core.perception.detector import Detector
 from src.core.memory.evidence import EvidenceManager
 from src.core.analysis.action_rec import ActionRecognizer
 
 class RapidPipeline:
-    """
-    The Orchestrator.
-    Connects Phase 1 (Perception) -> Memory -> Phase 2 (Analysis).
-    Records the final output to disk.
-    """
     def __init__(self):
-        logger.info("Initializing Rapid Pipeline...")
+        logger.info("Initializing Asynchronous Pipeline...")
         
-        # 1. Load Components
-        self.detector = Detector()          # The Eyes (YOLO)
-        self.memory = EvidenceManager()     # The Bridge (Buffer)
-        self.brain = ActionRecognizer()     # The Brain (CoCa)
-        self.visualizer = Visualizer()      # The Painter
+        self.detector = Detector()
+        self.memory = EvidenceManager()
+        self.visualizer = Visualizer()
+        self.brain = ActionRecognizer() 
         
-        # 2. Config
-        self.conf_threshold = cfg['action']['threshold'] # e.g. 0.75
+        self.conf_threshold = cfg['action']['threshold']
+        self.safe_actions = ['normal walking', 'standing still']
         
-        # 3. State
-        self.alerts = {} # Stores active alerts {tracker_id: "Violence detected"}
+        # Shared State for Visualization
+        self.actions = {} 
+        
+        # Async Threading Setup
+        self.analysis_queue = queue.Queue(maxsize=1)
+        self.running = True
+        self.next_target_index = 0  
+        
+        # Start Background Worker
+        self.worker_thread = threading.Thread(target=self._analysis_worker, daemon=True)
+        self.worker_thread.start()
+
+    def _analysis_worker(self):
+        """Runs in the background so the video never freezes."""
+        while self.running:
+            try:
+                tracker_id, clip = self.analysis_queue.get(timeout=0.1)
+                
+                # Heavy Math (1.5 seconds)
+                scores = self.brain.get_action_score(clip)
+                
+                top_action = max(scores, key=scores.get)
+                top_score = scores[top_action]
+                
+                # Update visualizer state
+                self.actions[tracker_id] = f"{top_action} ({top_score:.0%})"
+                
+                # Log only if violent
+                if top_action not in self.safe_actions and top_score > self.conf_threshold:
+                    logger.warning(f"ALERT: {top_action} detected on ID {tracker_id}!")
+                
+                self.analysis_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Worker Error: {e}")
 
     def run(self, source_path):
-        """
-        Main Loop: Reads, Processes, Displays, and SAVES video.
-        """
         cap = cv2.VideoCapture(source_path)
-        if not cap.isOpened():
-            logger.error(f"Could not open video: {source_path}")
+        if not cap.isOpened(): 
+            logger.error("Failed to open input video.")
             return
 
-        # --- 1. Setup Video Recorder ---
-        # We need the width/height of the ORIGINAL video to save it correctly
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        
-        # Ensure output directory exists
+        w, h, fps = int(cap.get(3)), int(cap.get(4)), int(cap.get(5))
         out_dir = cfg['paths']['output_dir']
         os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, "evidence_async.mp4")
+        out_writer = cv2.VideoWriter(out_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
         
-        # Define the Output Path (e.g., data/outputs/evidence.mp4)
-        out_path = os.path.join(out_dir, "evidence.mp4")
-        
-        # Initialize Writer (mp4v is a standard codec)
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out_writer = cv2.VideoWriter(out_path, fourcc, fps, (frame_width, frame_height))
-        
-        logger.info(f"Recording evidence to: {out_path}")
-        
-        # Get Display Resolution (For your screen only, not the file)
         disp_w, disp_h = cfg['system'].get('display_resolution', [1280, 720])
-
-        logger.info("Pipeline started. Press 'Q' to exit.")
+        logger.info(f"Pipeline started. Recording to {out_path}")
         
         try:
             while True:
-                # A. Read Frame
                 ret, frame = cap.read()
-                if not ret:
-                    break
+                if not ret: break
                 
-                # B. Phase 1: Detection & Tracking
                 detections = self.detector.process_frame(frame)
-                
-                # C. Update Memory (The Bridge)
-                # ready_clips is a dict: { tracker_id: [16 frames] }
                 ready_clips = self.memory.update(frame, detections)
                 
-                # D. Phase 2: Analysis (The Brain)
+                # Round-Robin Scheduler
                 if ready_clips:
-                    for tracker_id, clip in ready_clips.items():
-                        # Only analyze if we haven't already flagged them (Optimization)
-                        if tracker_id not in self.alerts:
-                            # logger.info(f"Analyzing ID {tracker_id}...")
-                            scores = self.brain.get_action_score(clip)
-                            top_action = max(scores, key=scores.get)
-                            top_score = scores[top_action]
-                            
-                            # Trigger Alert logic
-                            safe_actions = ['normal walking', 'standing still']
-                            if top_action not in safe_actions and top_score > self.conf_threshold:
-                                self.alerts[tracker_id] = f"{top_action} ({top_score:.0%})"
-                                logger.warning(f"ALERT: {top_action} detected on ID {tracker_id}!")
+                    available_ids = list(ready_clips.keys())
+                    if available_ids:
+                        idx = self.next_target_index % len(available_ids)
+                        target_id = available_ids[idx]
+                        
+                        if not self.analysis_queue.full():
+                            self.analysis_queue.put((target_id, ready_clips[target_id]))
+                            self.next_target_index += 1
 
-                # E. Visualization (Draw on Frame)
-                out_frame = self.visualizer.draw(frame, detections)
+                # Draw with actions
+                out_frame = self.visualizer.draw(frame, detections, actions=self.actions)
                 
-                # Draw Alert Overlays directly on the frame
-                for tracker_id, alert_msg in self.alerts.items():
-                    cv2.putText(out_frame, f"ALERT: {alert_msg}", (50, 50 + (tracker_id*50)), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 4)
+                # Status Indicator (Green = Free, Orange = Thinking)
+                status_color = (0, 255, 0) if self.analysis_queue.empty() else (0, 165, 255)
+                cv2.circle(out_frame, (30, 30), 10, status_color, -1) 
 
-                # --- F. SAVE THE FRAME ---
                 out_writer.write(out_frame)
-
-                # G. Display (Resize for screen)
                 disp_frame = cv2.resize(out_frame, (disp_w, disp_h))
-                cv2.imshow("SentinAI System", disp_frame)
+                cv2.imshow("SentinAI Async System", disp_frame)
                 
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-        
-        except KeyboardInterrupt:
-            logger.info("Stopping pipeline...")
-            
+                if cv2.waitKey(1) & 0xFF == ord('q'): break
+                
         finally:
-            # Cleanup
+            self.running = False 
             cap.release()
-            out_writer.release() # <--- Important: Closes the file safely
+            out_writer.release()
             cv2.destroyAllWindows()
-            logger.info(f"Evidence saved successfully to {out_path}")
+            logger.info("System shutdown complete.")
