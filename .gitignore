@@ -21,6 +21,11 @@ data/dataset/*
 models/*.pt
 models/*.pth
 models/*.bin
+models/*.safetensors
+models/*.json
+models/*.txt
+models/*.py
+!models/Note.txt
 
 # 4. Evidence/Logs
 evidence/*
