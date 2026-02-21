@@ -24,7 +24,8 @@ class RapidPipeline:
         # Must match the new config prompts exactly
         self.safe_actions = [
             'a person standing completely upright and casually walking forward', 
-            'a person standing completely still and doing nothing'
+            'a person standing completely still and doing nothing',
+            'unknown_benign_activity'
         ]
 
         # Shared State for Visualization
@@ -75,14 +76,16 @@ class RapidPipeline:
                 else:
                     self.alert_counters[tracker_id] = 0 # Reset counter
                     
-                    # Show a clean, short label on screen so the UI looks nice
-                    if "walking" in top_action:
+                    # --- SWE FIX: Handle OSR label and Background labels ---
+                    if "unknown_benign_activity" in top_action:
+                        self.actions[tracker_id] = "analyzing..." # Quiet, professional UI
+                    elif "walking" in top_action:
                         self.actions[tracker_id] = f"walking ({top_score:.0%})"
                     elif "standing" in top_action:
                         self.actions[tracker_id] = f"standing ({top_score:.0%})"
                     else:
-                        self.actions[tracker_id] = f"safe ({top_score:.0%})"
-
+                        self.actions[tracker_id] = "safe"
+                        
                 self.analysis_queue.task_done()
 
             except queue.Empty:
