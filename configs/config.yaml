@@ -26,10 +26,10 @@ action:
   
   # Path to the .bin file you just downloaded
   weights_path: "models/coca_l14.bin"
-  # The window size (Time). 16 frames is the standard for video clips.
-  window_size: 16
-  # We don't need to analyze every single frame. We skip every 2nd frame to save GPU.
-  stride: 2
+  # The window size (Time). 8 frames is the standard for video clips.
+  window_size: 8
+  # We don't need to analyze every single frame. We skip every 3rd frame to save GPU.
+  stride: 3
   # Sensitivity. If score > 0.75, it's a fight.
   threshold: 0.75
   # The text prompts FreeZAD will search for

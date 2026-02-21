@@ -29,6 +29,11 @@ class ActionRecognizer:
                 pretrained=pretrained,
                 device=self.device
             )
+            
+            # Convert model to FP16 (Half Precision) if using GPU
+            if self.device == 'cuda':
+                self.model = self.model.half()
+                
             self.model.eval() # Freeze the model (Save memory)
             logger.info("Phase 2 Model loaded successfully.")
             
@@ -70,6 +75,11 @@ class ActionRecognizer:
             # Stack all 16 frames into one batch
             images = [self.preprocess(Image.fromarray(f)).unsqueeze(0) for f in frame_list]
             image_batch = torch.cat(images).to(self.device)
+
+            # Convert to FP16 if using GPU
+            if self.device == 'cuda':
+                image_batch = image_batch.half()
+                
         except Exception as e:
             logger.error(f"Image preprocessing failed: {e}")
             return None
