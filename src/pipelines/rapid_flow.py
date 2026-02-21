@@ -20,10 +20,12 @@ class RapidPipeline:
         self.brain = ActionRecognizer() 
         
         self.conf_threshold = cfg['action']['threshold']
+        self.alert_trigger_count = cfg['action']['alert_trigger_count']
         self.safe_actions = ['normal walking', 'standing still']
         
         # Shared State for Visualization
         self.actions = {} 
+        self.alert_counters = {} # Track how many times an action has been detected
         
         # Async Threading Setup
         self.analysis_queue = queue.Queue(maxsize=1)
@@ -46,14 +48,21 @@ class RapidPipeline:
                 top_action = max(scores, key=scores.get)
                 top_score = scores[top_action]
                 
-                # Update visualizer state
-                self.actions[tracker_id] = f"{top_action} ({top_score:.0%})"
-                
-                # Log only if violent
                 if top_action not in self.safe_actions and top_score > self.conf_threshold:
-                    logger.warning(f"ALERT: {top_action} detected on ID {tracker_id}!")
-                
+                    self.alert_counters[tracker_id] = self.alert_counters.get(tracker_id, 0) + 1
+                   
+                   # Check if they hit the threshold (e.g., 3 times in a row)
+                    if self.alert_counters[tracker_id] >= self.alert_trigger_count:
+                        self.actions[tracker_id] = f"🚨 {top_action} ({top_score:.0%})"
+                        logger.warning(f"CONFIRMED ALERT: {top_action} on ID {tracker_id}! -> (Ready for VLM)")
+                    else:
+                        # It's suspicious, but waiting for confirmation
+                        self.actions[tracker_id] = f"suspicious ({self.alert_counters[tracker_id]}/{self.alert_trigger_count})"
+                else:
+                    # They are safe (walking/standing). RESET their counter to 0!
+                    self.alert_counters[tracker_id] = 0                
                 self.analysis_queue.task_done()
+
             except queue.Empty:
                 continue
             except Exception as e:

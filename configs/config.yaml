@@ -8,7 +8,7 @@ system:
   display_resolution: [1280, 720]
 
 paths:
-  input_source: "data/inputs/test_video 1.mp4"
+  input_source: "data/inputs/test_video 2.mp4"
   output_dir: "data/outputs/"
   model_dir: "models/"
 
@@ -23,13 +23,13 @@ detection:
 action:
   # Model Architecture Name (Must match OpenCLIP library names)
   model_name: "coca_ViT-L-14"
-  
+  alert_trigger_count: 3
   # Path to the .bin file you just downloaded
   weights_path: "models/coca_l14.bin"
   # The window size (Time). 8 frames is the standard for video clips.
   window_size: 8
   # We don't need to analyze every single frame. We skip every 3rd frame to save GPU.
-  stride: 3
+  stride: 4
   # Sensitivity. If score > 0.75, it's a fight.
   threshold: 0.75
   # The text prompts FreeZAD will search for
