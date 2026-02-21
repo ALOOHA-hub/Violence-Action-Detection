@@ -14,7 +14,7 @@ class Visualizer:
             text_position=sv.Position.TOP_LEFT
         )
 
-    def draw(self, frame, detections):
+    def draw(self, frame, detections, actions=None):
         """
         Draws bounding boxes and Tracker IDs on the frame.
         """
