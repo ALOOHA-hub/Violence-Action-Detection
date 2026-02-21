@@ -34,12 +34,18 @@ action:
   threshold: 0.75
   # The text prompts FreeZAD will search for
   prompts:
-    - "a person punching"
-    - "people fighting"
-    - "kicking someone"
-    - "person falling down"
-    - "shooting with gun"
-    - "beating someone"
-    - "injured"
-    - "normal walking"    # Background class
-    - "standing still"    # Background class
+   - "a person punching"
+   - "a person aggressively punching someone"
+   - "people fighting"
+   - "two people violently fighting each other"
+   - "kicking someone"
+   - "a person violently kicking someone on the ground"
+   - "person falling down"
+   - "a person violently collapsing and falling hard to the ground"
+   - "shooting with gun"
+   - "beating someone"
+   - "injured"
+   - "normal walking"    # Background class
+   - "a person standing completely upright and casually walking forward"
+   - "standing still"    # Background class
+   - "a person standing completely still and doing nothing"

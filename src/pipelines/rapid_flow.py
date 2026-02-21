@@ -20,9 +20,13 @@ class RapidPipeline:
         self.brain = ActionRecognizer() 
         
         self.conf_threshold = cfg['action']['threshold']
-        self.alert_trigger_count = cfg['action']['alert_trigger_count']
-        self.safe_actions = ['normal walking', 'standing still']
-        
+        self.alert_trigger_count = cfg['action'].get('alert_trigger_count', 3)
+        # Must match the new config prompts exactly
+        self.safe_actions = [
+            'a person standing completely upright and casually walking forward', 
+            'a person standing completely still and doing nothing'
+        ]
+
         # Shared State for Visualization
         self.actions = {} 
         self.alert_counters = {} # Track how many times an action has been detected
@@ -42,25 +46,43 @@ class RapidPipeline:
             try:
                 tracker_id, clip = self.analysis_queue.get(timeout=0.1)
                 
-                # Heavy Math (1.5 seconds)
+                # Heavy Math
                 scores = self.brain.get_action_score(clip)
                 
                 top_action = max(scores, key=scores.get)
                 top_score = scores[top_action]
                 
-                if top_action not in self.safe_actions and top_score > self.conf_threshold:
+                # --- EVENT-DRIVEN STATE MACHINE (DEBOUNCING) ---
+                is_violent = top_action not in self.safe_actions
+                
+                if is_violent and top_score > self.conf_threshold:
+                    # Increment strike counter
                     self.alert_counters[tracker_id] = self.alert_counters.get(tracker_id, 0) + 1
-                   
-                   # Check if they hit the threshold (e.g., 3 times in a row)
+                    
+                    # State: CONFIRMED ALERT (3+ strikes)
                     if self.alert_counters[tracker_id] >= self.alert_trigger_count:
-                        self.actions[tracker_id] = f"🚨 {top_action} ({top_score:.0%})"
-                        logger.warning(f"CONFIRMED ALERT: {top_action} on ID {tracker_id}! -> (Ready for VLM)")
+                        # Simplify the label for the screen (e.g., just show "PUNCHING" instead of the whole sentence)
+                        display_text = top_action.split()[2] if len(top_action.split()) > 2 else top_action
+                        self.actions[tracker_id] = f"🚨 {display_text.upper()} ({top_score:.0%})"
+                        logger.warning(f"CONFIRMED THREAT: {top_action} on ID {tracker_id}")
+                    
+                    # State: SUSPICIOUS (1-2 strikes)
                     else:
-                        # It's suspicious, but waiting for confirmation
-                        self.actions[tracker_id] = f"suspicious ({self.alert_counters[tracker_id]}/{self.alert_trigger_count})"
+                        strikes = self.alert_counters[tracker_id]
+                        self.actions[tracker_id] = f"suspicious ({strikes}/{self.alert_trigger_count})"
+                
+                # State: IDLE (Safe)
                 else:
-                    # They are safe (walking/standing). RESET their counter to 0!
-                    self.alert_counters[tracker_id] = 0                
+                    self.alert_counters[tracker_id] = 0 # Reset counter
+                    
+                    # Show a clean, short label on screen so the UI looks nice
+                    if "walking" in top_action:
+                        self.actions[tracker_id] = f"walking ({top_score:.0%})"
+                    elif "standing" in top_action:
+                        self.actions[tracker_id] = f"standing ({top_score:.0%})"
+                    else:
+                        self.actions[tracker_id] = f"safe ({top_score:.0%})"
+
                 self.analysis_queue.task_done()
 
             except queue.Empty:
