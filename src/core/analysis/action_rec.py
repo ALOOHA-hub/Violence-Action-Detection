@@ -106,6 +106,6 @@ class ActionRecognizer:
         osr_thresh = cfg['action'].get('osr_threshold', 0.25)
         if max_raw_sim < osr_thresh:
            # Return a dummy result that forces the State Machine into IDLE
-            return {"unknown/safe (OSR filtered)": 1.0}
+            return {"unknown_benign_activity": 1.0}
 
         return result
