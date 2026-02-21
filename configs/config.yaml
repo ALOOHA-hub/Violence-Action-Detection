@@ -6,6 +6,9 @@ system:
   device: "cuda"           # Options: cuda, cpu, mps
   log_level: "INFO"        # Options: DEBUG, INFO, WARNING, ERROR
   display_resolution: [1280, 720]
+  record_indident: true
+  pre_event_seconds: 2
+  post_event_seconds: 3
 
 paths:
   input_source: "data/inputs/test_video 2.mp4"
