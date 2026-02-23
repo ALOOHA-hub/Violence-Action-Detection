@@ -33,3 +33,6 @@ pyyaml                 # To read config.yaml
 scipy                  # For the FFT (Fast Fourier Transform) in FreeZAD calibration
 tqdm                   # Progress bars
 colorama               # Colored terminal output
+
+# ---Connecting to qwen via api
+ollama

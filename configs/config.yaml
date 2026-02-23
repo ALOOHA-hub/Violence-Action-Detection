@@ -11,7 +11,7 @@ system:
   post_event_seconds: 3
 
 paths:
-  input_source: "data/inputs/test_video 2.mp4"
+  input_source: "data/inputs/11.mp4"
   output_dir: "data/outputs/"
   model_dir: "models/"
 
@@ -38,18 +38,21 @@ action:
   ors_threshold: 0.35
   # The text prompts FreeZAD will search for
   prompts:
-   - "a person punching"
-   - "a person aggressively punching someone"
-   - "people fighting"
-   - "two people violently fighting each other"
-   - "kicking someone"
-   - "a person violently kicking someone on the ground"
-   - "person falling down"
-   - "a person violently collapsing and falling hard to the ground"
-   - "shooting with gun"
-   - "beating someone"
-   - "injured"
-   - "normal walking"    # Background class
-   - "a person standing completely upright and casually walking forward"
-   - "standing still"    # Background class
-   - "a person standing completely still and doing nothing"
+    - "a person punching"
+    - "people fighting"
+    - "two people violently fighting each other"
+    - "kicking someone"
+    - "person falling down"
+    - "shooting with gun"
+    - "injured"
+    - "a person engaged in normal, non-violent everyday behavior"
+    - "normal behavior"
+
+  # The exact strings the State Machine should ignore
+  safe_prompts:
+    - "normal behavior"
+    - "a person engaged in normal, non-violent everyday behavior"
+
+  ui_labels:
+    "a person engaged in normal, non-violent everyday behavior": "safe"
+    "unknown_benign_activity": "analyzing..."
