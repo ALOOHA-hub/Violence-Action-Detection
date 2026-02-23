@@ -29,7 +29,8 @@ class RapidPipeline:
         self.conf_threshold = cfg['action']['threshold']
         self.alert_trigger_count = cfg['action'].get('alert_trigger_count', 3)
         
-        self.safe_actions = cfg['action'].get('safe_prompts', []) + ['unknown_benign_activity']        self.ui_labels = cfg['action'].get('ui_labels', {})
+        self.safe_actions = cfg['action'].get('safe_prompts', []) + ['unknown_benign_activity']    
+        self.ui_labels = cfg['action'].get('ui_labels', {})
 
         self.actions = {} 
         self.alert_counters = {} 
