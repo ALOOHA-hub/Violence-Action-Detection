@@ -56,3 +56,19 @@ action:
   ui_labels:
     "a person engaged in normal, non-violent everyday behavior": "safe"
     "unknown_benign_activity": "analyzing..."
+
+
+# Phase 3: Vision-Language Model (Ollama Microservice)
+vlm:
+  model_id: "qwen2.5vl:3b"
+  # Video Extraction Settings (VRAM Protection)
+  extraction:
+    num_frames: 8
+    resize_width: 480
+    resize_height: 270
+    jpeg_quality: 80
+  # The MVP Prompt
+  prompt: >
+    You are a security AI. Review these chronological frames from a CCTV camera. 
+    Is there a violent physical altercation happening? 
+    Respond strictly in JSON format with 'threat_detected' (boolean) and 'description' (string).
