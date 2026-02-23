@@ -1,38 +1,29 @@
-import supervision as sv
 import cv2
 
 class Visualizer:
-    def __init__(self):
-        # Create annotators for Boxes and Labels
-        self.box_annotator = sv.BoxAnnotator(
-            thickness=3
-        )
-        self.label_annotator = sv.LabelAnnotator(
-            text_scale=1.5,
-            text_thickness=2,
-            text_padding=10,
-            text_position=sv.Position.TOP_LEFT
-        )
-
-    def draw(self, frame, detections, actions=None):
-        """
-        Draws bounding boxes and Tracker IDs on the frame.
-        """
-        if detections.tracker_id is None:
-            return frame
-
-        labels = []
-        for track_id, conf in zip(detections.tracker_id, detections.confidence):   
-            tracker_id = int(track_id)
-            label_text = f"ID: #{tracker_id}"
-
-            if actions and tracker_id in actions:
-                label_text += f" | {actions[tracker_id]}"
-
-            labels.append(label_text)
-
+    def draw(self, frame, detections, state_manager):
+        """Draws dynamic bounding boxes based on the State Manager's threat level."""
         annotated_frame = frame.copy()
-        annotated_frame = self.box_annotator.annotate(scene=annotated_frame, detections=detections)
-        annotated_frame = self.label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
-        
+
+        if detections.tracker_id is None:
+            return annotated_frame
+
+        for box, track_id in zip(detections.xyxy, detections.tracker_id):   
+            tracker_id = int(track_id)
+            
+            # Ask the brain what color and text to use
+            color, text = state_manager.get_ui_data(tracker_id)
+            label = f"ID #{tracker_id} | {text}"
+
+            # Draw Bounding Box
+            x1, y1, x2, y2 = map(int, box)
+            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 3)
+            
+            # Draw Text Background
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(annotated_frame, (x1, y1 - 25), (x1 + tw, y1), color, -1)
+            
+            # Draw Text
+            cv2.putText(annotated_frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+            
         return annotated_frame

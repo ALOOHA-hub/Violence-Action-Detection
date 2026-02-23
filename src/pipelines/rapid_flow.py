@@ -32,8 +32,7 @@ class RapidPipeline:
         self.safe_actions = cfg['action'].get('safe_prompts', []) + ['unknown_benign_activity']    
         self.ui_labels = cfg['action'].get('ui_labels', {})
 
-        self.actions = {} 
-        self.alert_counters = {} 
+        self.state_manager = SecurityStateManager(self.alert_trigger_count)
         
         self.analysis_queue = queue.Queue(maxsize=1)
         self.running = True
@@ -68,31 +67,21 @@ class RapidPipeline:
                 scores = self.brain.get_action_score(clip)
                 
                 top_action = max(scores, key=scores.get)
-                top_score = scores[top_action]
-                
+                top_score = scores[top_action]                
                 is_violent = top_action not in self.safe_actions
                 
-                if is_violent and top_score > self.conf_threshold:
-                    self.alert_counters[tracker_id] = self.alert_counters.get(tracker_id, 0) + 1
-                    
-                    if self.alert_counters[tracker_id] >= self.alert_trigger_count:
-                        display_text = top_action.split()[2] if len(top_action.split()) > 2 else top_action
-                        self.actions[tracker_id] = f"🚨 {display_text.upper()} ({top_score:.0%})"
-                        logger.warning(f"CONFIRMED THREAT: {top_action} on ID {tracker_id}")
-                        
-                        # --- TRIGGER INCIDENT RECORDING ---
-                        if self.record_incidents:
-                            self.is_recording_incident = True
-                            self.post_alert_counter = self.post_buffer_size
-                    
-                    else:
-                        strikes = self.alert_counters[tracker_id]
-                        self.actions[tracker_id] = f"suspicious ({strikes}/{self.alert_trigger_count})"
+                display_name = self.ui_labels.get(top_action, top_action)
                 
-                else:
-                    self.alert_counters[tracker_id] = 0 
-                    display_name = self.ui_labels.get(top_action, top_action)
-                    self.actions[tracker_id] = f"{display_name} ({top_score:.0%})"
+                # Delegate to the Brain
+                self.state_manager.update_phase2(tracker_id, is_violent, display_name, top_score)
+                
+                # Trigger recording only if the state manager escalated to Orange (Level 1)
+                current_state = self.state_manager.states.get(tracker_id)
+                if current_state and current_state.level == 1 and not self.is_recording_incident:
+                    if self.record_incidents:
+                        self.is_recording_incident = True
+                        self.post_alert_counter = self.post_buffer_size
+                        self.current_threat_id = tracker_id # Remember who caused the recording
 
                 self.analysis_queue.task_done()
 
@@ -132,6 +121,8 @@ class RapidPipeline:
                 
                 if ready_clips:
                     available_ids = list(ready_clips.keys())
+                    self.state_manager.cleanup(available_ids)
+
                     if available_ids:
                         idx = self.next_target_index % len(available_ids)
                         target_id = available_ids[idx]
@@ -139,7 +130,7 @@ class RapidPipeline:
                             self.analysis_queue.put((target_id, ready_clips[target_id]))
                             self.next_target_index += 1
 
-                out_frame = self.visualizer.draw(frame, detections, actions=self.actions)
+                out_frame = self.visualizer.draw(frame, detections, state_manager=self.state_manager)
                 
                # Recognition logic
                 if self.is_recording_incident:
@@ -216,8 +207,15 @@ class RapidPipeline:
                     report_path = video_path.replace('.mp4', '_report.json')
                     with open(report_path, 'w', encoding='utf-8') as f:
                         json.dump(report, f, indent=4)
+
+                    # Upgrade: Feedback Loop to the UI
+                    threat_detected = report.get('threat_detected', False)
+                    summary = report.get('description', '')
+                    if hasattr(self, 'current_threat_id'):
+                        self.state_manager.update_phase3(self.current_threat_id, threat_detected, summary)
+
                         
-                    logger.info(f"🚨 Official Incident Report generated: {report_path}")
+                    logger.info(f"Official Incident Report generated: {report_path}")
                     self.vlm_queue.task_done()
 
                 except queue.Empty:
