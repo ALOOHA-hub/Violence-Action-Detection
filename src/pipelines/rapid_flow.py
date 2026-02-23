@@ -3,7 +3,10 @@ import queue
 import threading
 import os
 import time
+import json
+
 from collections import deque
+
 from src.utils.logger import logger
 from src.utils.config_loader import cfg
 from src.utils.visualization import Visualizer
@@ -11,6 +14,7 @@ from src.utils.visualization import Visualizer
 from src.core.perception.detector import Detector
 from src.core.memory.evidence import EvidenceManager
 from src.core.analysis.action_rec import ActionRecognizer
+from src.core.analysis.vlm_reasoner import IncidentReasoner
 
 class RapidPipeline:
     def __init__(self):
@@ -19,7 +23,8 @@ class RapidPipeline:
         self.detector = Detector()
         self.memory = EvidenceManager()
         self.visualizer = Visualizer()
-        self.brain = ActionRecognizer() 
+        self.brain = ActionRecognizer()
+        self.reasoner = IncidentReasoner()
         
         self.conf_threshold = cfg['action']['threshold']
         self.alert_trigger_count = cfg['action'].get('alert_trigger_count', 3)
@@ -38,12 +43,19 @@ class RapidPipeline:
         self.worker_thread = threading.Thread(target=self._analysis_worker, daemon=True)
         self.worker_thread.start()
 
-        # --- SWE ARCHITECTURE: Incident Recording Settings ---
+        # ---: Incident Recording Settings ---
         self.record_incidents = cfg['system'].get('record_incident', True)
         self.fps_estimate = 30 # Default, will be updated in run()
         self.pre_buffer_size = cfg['system'].get('pre_event_seconds', 2) * self.fps_estimate
         self.post_buffer_size = cfg['system'].get('post_event_seconds', 3) * self.fps_estimate
         
+
+        # --- Phase 3 VLM ---
+        self.vlm_queue = queue.Queue()
+        self.vlm_worker_thread = threading.Thread(target=self._vlm_worker, daemon=True)
+        self.vlm_worker_thread.start()
+
+
         self.frame_buffer = deque(maxlen=self.pre_buffer_size)
         self.is_recording_incident = False
         self.post_alert_counter = 0
@@ -134,15 +146,16 @@ class RapidPipeline:
                     # Initialize writer if this is the start of an incident
                     if self.incident_writer is None:
                         timestamp = time.strftime("%Y%m%d-%H%M%S")
-                        incident_path = os.path.join(out_dir, f"incident_{timestamp}.mp4")
+                        self.current_incident_path = os.path.join(out_dir, f"incident_{timestamp}.mp4")                        
                         self.incident_writer = cv2.VideoWriter(
-                            incident_path, cv2.VideoWriter_fourcc(*'mp4v'), self.fps_estimate, (w, h)
-                        )
+                            self.current_incident_path, cv2.VideoWriter_fourcc(*'mp4v'), self.fps_estimate, (w, h)
+                            )
                         # Flush the PRE-EVENT buffer to file
                         for buffered_frame in self.frame_buffer:
                             self.incident_writer.write(buffered_frame)
-                        logger.info(f"Writing incident evidence to {incident_path}")
 
+                        logger.info(f"Writing incident evidence to {self.current_incident_path}")
+                    
                     # Write the current frame
                     self.incident_writer.write(out_frame)
                     self.post_alert_counter -= 1
@@ -152,7 +165,10 @@ class RapidPipeline:
                         self.incident_writer.release()
                         self.incident_writer = None
                         self.is_recording_incident = False
-                        logger.info("Incident recording finalized.")
+                        logger.info(f"Incident recording finalized: {self.current_incident_path}")
+
+                        # --- SWE HANDOFF: Send to Phase 3 ---
+                        self.vlm_queue.put(self.current_incident_path)
 
                 # UI Indicators
                 status_color = (0, 165, 255) if not self.analysis_queue.empty() else (0, 255, 0)
@@ -168,3 +184,27 @@ class RapidPipeline:
             if self.incident_writer: self.incident_writer.release()
             cv2.destroyAllWindows()
             logger.info("System shutdown complete.")
+
+    def _vlm_worker(self):
+            """Background thread that processes saved incident videos through the Ollama VLM."""
+            while self.running:
+                try:
+                    # Sleep and wait for a completed video path to arrive
+                    video_path = self.vlm_queue.get(timeout=1.0)
+                    logger.info(f"Phase 3 Worker analyzing new evidence: {video_path}")
+                    
+                    # Send to Ollama (This takes a few seconds, but won't block the camera)
+                    report = self.reasoner.analyze_incident(video_path)
+                    
+                    # Save the JSON report right next to the video file
+                    report_path = video_path.replace('.mp4', '_report.json')
+                    with open(report_path, 'w', encoding='utf-8') as f:
+                        json.dump(report, f, indent=4)
+                        
+                    logger.info(f"🚨 Official Incident Report generated: {report_path}")
+                    self.vlm_queue.task_done()
+
+                except queue.Empty:
+                    continue
+                except Exception as e:
+                    logger.error(f"Phase 3 Worker Error: {e}")
