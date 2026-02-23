@@ -23,7 +23,7 @@ def setup_logger(name="Violence Action Detection"):
     
     # Define Format
     formatter = logging.Formatter(
-        '[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s',
+        '[%(asctime)s] [%(levelname)s] [%(module)s]: %(message)s',
         datefmt='%H:%M:%S'
     )
     
