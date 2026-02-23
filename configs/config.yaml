@@ -60,8 +60,9 @@ action:
 
 # Phase 3: Vision-Language Model (Ollama Microservice)
 vlm:
+  provider: "local" # Toggle between 'local' or 'cloud'
   model_id: "qwen2.5vl:3b"
-  # Video Extraction Settings (VRAM Protection)
+  cloud_model_id: "qwen-vl-max" # Used if provider is set to 'cloud'
   extraction:
     num_frames: 8
     resize_width: 480

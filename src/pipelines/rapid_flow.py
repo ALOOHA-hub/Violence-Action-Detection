@@ -14,7 +14,7 @@ from src.utils.visualization import Visualizer
 from src.core.perception.detector import Detector
 from src.core.memory.evidence import EvidenceManager
 from src.core.analysis.action_rec import ActionRecognizer
-from src.core.analysis.vlm_reasoner import IncidentReasoner
+from src.core.analysis.vlm import VisionReasonerFactory
 
 class RapidPipeline:
     def __init__(self):
@@ -24,13 +24,12 @@ class RapidPipeline:
         self.memory = EvidenceManager()
         self.visualizer = Visualizer()
         self.brain = ActionRecognizer()
-        self.reasoner = IncidentReasoner()
+        self.reasoner = VisionReasonerFactory.create()
         
         self.conf_threshold = cfg['action']['threshold']
         self.alert_trigger_count = cfg['action'].get('alert_trigger_count', 3)
         
-        self.safe_actions = cfg['action'].get('safe_prompts', True)
-        self.ui_labels = cfg['action'].get('ui_labels', {})
+        self.safe_actions = cfg['action'].get('safe_prompts', []) + ['unknown_benign_activity']        self.ui_labels = cfg['action'].get('ui_labels', {})
 
         self.actions = {} 
         self.alert_counters = {} 
@@ -141,7 +140,7 @@ class RapidPipeline:
 
                 out_frame = self.visualizer.draw(frame, detections, actions=self.actions)
                 
-                # --- EVENT-DRIVEN RECORDING LOGIC ---
+               # Recognition logic
                 if self.is_recording_incident:
                     # Initialize writer if this is the start of an incident
                     if self.incident_writer is None:
@@ -167,7 +166,7 @@ class RapidPipeline:
                         self.is_recording_incident = False
                         logger.info(f"Incident recording finalized: {self.current_incident_path}")
 
-                        # --- SWE HANDOFF: Send to Phase 3 ---
+                        # Send to Phase 3
                         self.vlm_queue.put(self.current_incident_path)
 
                 # UI Indicators
@@ -181,7 +180,7 @@ class RapidPipeline:
         finally:
             cap.release()
 
-            # FIX 2: Graceful Shutdown Handoff
+            # Graceful Shutdown Handoff
             if self.incident_writer: 
                 self.incident_writer.release()
                 logger.info(f"Incident recording force-finalized due to shutdown: {self.current_incident_path}")
