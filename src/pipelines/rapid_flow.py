@@ -179,10 +179,26 @@ class RapidPipeline:
                 if cv2.waitKey(1) & 0xFF == ord('q'): break
                 
         finally:
-            self.running = False 
             cap.release()
-            if self.incident_writer: self.incident_writer.release()
+
+            # FIX 2: Graceful Shutdown Handoff
+            if self.incident_writer: 
+                self.incident_writer.release()
+                logger.info(f"Incident recording force-finalized due to shutdown: {self.current_incident_path}")
+                self.vlm_queue.put(self.current_incident_path)
+
+
             cv2.destroyAllWindows()
+
+            # Keep the main program alive just long enough for Ollama to finish its current job
+            # Prevent Race Condition 
+            # Unconditionally block the main thread until the VLM finishes its API calls
+            logger.info("Waiting for Phase 3 VLM to finish generating final reports...")
+            self.vlm_queue.join()
+            
+            # Safe to kill worker loops now
+            self.running = False
+
             logger.info("System shutdown complete.")
 
     def _vlm_worker(self):
