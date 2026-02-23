@@ -11,7 +11,7 @@ system:
   post_event_seconds: 3
 
 paths:
-  input_source: "data/inputs/11.mp4"
+  input_source: "data/inputs/V_120.mp4"
   output_dir: "data/outputs/"
   model_dir: "models/"
 
