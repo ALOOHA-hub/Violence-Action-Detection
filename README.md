@@ -1,4 +1,4 @@
-# 🚨 Violence Action Detection
+4e31ed3a829be9ebdc95ea46929e98202569b15d# 🚨 Violence Action Detection
 
 **Violence Action Detection** is a multi-modal, asynchronous Vision-Language pipeline designed for privacy-preserving. It detects violent physical altercations and automatically generates detailed forensic JSON reports.
 ---
