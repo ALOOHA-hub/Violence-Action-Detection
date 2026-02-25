@@ -1,0 +1,18 @@
+{
+    "metrics": {
+        "accuracy": 0.45,
+        "precision": 0.471,
+        "recall": 0.8,
+        "false_positive_rate": 0.9
+    },
+    "performance": {
+        "average_fps": 2.87,
+        "total_frames_processed": 2293
+    },
+    "confusion_matrix": {
+        "TP": 16,
+        "FP": 18,
+        "TN": 2,
+        "FN": 4
+    }
+}
