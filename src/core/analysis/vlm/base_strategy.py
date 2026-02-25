@@ -4,6 +4,13 @@ from .interface import IVisionReasoner
 from src.utils.config_loader import cfg
 
 class BaseVisionReasoner(IVisionReasoner):
+    """
+    The "Eyes" (Reasoning Layer).
+    Responsibility: 
+    1. Takes the video file of the incident.
+    2. Extracts keyframes (snapshots).
+    3. Asks Qwen: "What is happening here?"
+    """
     def __init__(self):
         self.num_frames = cfg['vlm']['extraction'].get('num_frames', 8)
         self.resize_dim = (
@@ -14,6 +21,9 @@ class BaseVisionReasoner(IVisionReasoner):
         self.prompt = cfg['vlm'].get('prompt', "Analyze frames. Output JSON.")
 
     def _extract_frames_as_base64(self, video_path: str) -> list:
+        """
+        Extracts evenly-spaced frames from the incident video.
+        """
         cap = cv2.VideoCapture(video_path)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         if total_frames == 0: return []

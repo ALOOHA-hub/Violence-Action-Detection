@@ -9,6 +9,12 @@ class ThreatState:
         self.strike_count = 0    # How many times Phase 2 triggered
 
 class SecurityStateManager:
+    """
+    The Brain (Logic Layer).
+    Responsibility: 
+    1. Decides if someone is suspicious (Orange) or confirmed dangerous (Red).
+    2. Holds the "Memory" of the incident (the VLM report).
+    """
     def __init__(self, alert_trigger_count=3):
         self.states = {} # Maps tracker_id to ThreatState
         self.trigger_count = alert_trigger_count

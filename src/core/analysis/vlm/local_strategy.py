@@ -5,6 +5,13 @@ from src.utils.logger import logger
 from src.utils.config_loader import cfg
 
 class LocalOllamaStrategy(BaseVisionReasoner):
+    """
+    The "Eyes" (Reasoning Layer).
+    Responsibility: 
+    1. Takes the video file of the incident.
+    2. Extracts keyframes (snapshots).
+    3. Asks Qwen: "What is happening here?"
+    """
     def __init__(self):
         super().__init__()
         self.client = ollama
@@ -12,6 +19,9 @@ class LocalOllamaStrategy(BaseVisionReasoner):
         logger.info(f"Local VLM Strategy Initialized: {self.model_id}")
 
     def analyze_incident(self, video_path: str) -> dict:
+        """
+        Analyzes the incident video using the local Ollama model.
+        """
         b64_images = self._extract_frames_as_base64(video_path)
         if not b64_images: return {"threat_detected": False, "description": "Read error."}
 

@@ -4,12 +4,22 @@ from src.utils.logger import logger
 from src.utils.config_loader import cfg
 
 class CloudQwenStrategy(BaseVisionReasoner):
+    """
+    The "Eyes" (Reasoning Layer).
+    Responsibility: 
+    1. Takes the video file of the incident.
+    2. Extracts keyframes (snapshots).
+    3. Asks Qwen: "What is happening here?"
+    """
     def __init__(self):
         super().__init__()
         self.model_id = cfg['vlm'].get('cloud_model_id', 'qwen-vl-max')
         logger.info(f"Cloud VLM Strategy Initialized: {self.model_id}")
 
     def analyze_incident(self, video_path: str) -> dict:
+        """
+        Analyzes the incident video using the cloud-based Qwen model.
+        """
         try:
             import dashscope
             dashscope.api_key = os.getenv("QWEN_API_KEY", "MISSING_KEY")

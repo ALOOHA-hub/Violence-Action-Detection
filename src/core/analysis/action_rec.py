@@ -3,10 +3,15 @@ import open_clip
 import torch.nn.functional as F
 from PIL import Image
 from src.utils.logger import logger
-# --- CRITICAL IMPORT: This allows us to read config.yaml ---
 from src.utils.config_loader import cfg 
 
 class ActionRecognizer:
+    """
+    Phase 2: The "Muscle" (Action Recognition).
+    Responsibility: 
+    1. Takes a short video clip (8 - 16 frames) of a specific person.
+    2. Uses OpenCLIP to classify the action (e.g., "punching", "falling").
+    """
     def __init__(self):
         self.device = cfg['system']['device']
         

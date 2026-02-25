@@ -13,10 +13,9 @@ class EvidenceManager:
     """
     def __init__(self):
         # Configuration
-        # We read "16" from the config we just updated
         self.window_size = cfg['action'].get('window_size', 16)
         
-        # Standard input size for CoCa/CLIP (Do not change this)
+        # Standard input size for CoCa/CLIP
         self.target_size = (224, 224) 
         
         # The Main Database: { tracker_id: deque([frame1, frame2, ...]) }
@@ -29,7 +28,7 @@ class EvidenceManager:
             - detections: The Supervision Detections object (boxes, tracker_ids)
         
         Output:
-            - ready_clips: A Dictionary { tracker_id: [16 frames] } of who is ready to be analyzed.
+            - ready_clips: A Dictionary { tracker_id: [window_size frames] } of who is ready to be analyzed.
         """
         active_ids = set()
         ready_clips = {}
@@ -54,7 +53,7 @@ class EvidenceManager:
             self.buffers[tracker_id].append(crop)
             
             # 5. Check if we have enough history to analyze
-            # We only send data if we have exactly 16 frames
+            # We only send data if we have exactly window_size frames
             if len(self.buffers[tracker_id]) == self.window_size:
                 # Convert deque to list for the AI Engine
                 ready_clips[tracker_id] = list(self.buffers[tracker_id])
