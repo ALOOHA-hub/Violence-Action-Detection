@@ -1,8 +1,21 @@
 import cv2
 
 class Visualizer:
+    """
+    Draws dynamic bounding boxes based on the State Manager's threat level.
+    """
     def draw(self, frame, detections, state_manager):
-        """Draws dynamic bounding boxes based on the State Manager's threat level."""
+        """
+        Draws dynamic bounding boxes based on the State Manager's threat level.
+        
+        Args:
+            frame: The frame to draw on.
+            detections: The detections to draw.
+            state_manager: The state manager to get the threat level from.
+        
+        Returns:
+            The annotated frame.
+        """
         annotated_frame = frame.copy()
 
         if detections.tracker_id is None:

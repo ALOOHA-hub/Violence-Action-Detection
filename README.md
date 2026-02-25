@@ -1,4 +1,4 @@
-4e31ed3a829be9ebdc95ea46929e98202569b15d# 🚨 Violence Action Detection
+# 🚨 Violence Action Detection
 
 **Violence Action Detection** is a multi-modal, asynchronous Vision-Language pipeline designed for privacy-preserving. It detects violent physical altercations and automatically generates detailed forensic JSON reports.
 ---
@@ -10,7 +10,7 @@
 
 When processing an input video, the system runs. If an altercation is detected, it flags the subjects, locks their bounding boxes, and triggers a Vision-Language Model (VLM) to generate a detailed forensic JSON report.
 
-![Video](./data/outputs/incident_20260223-1641271.mp4)
+![Incident Demo](./data/outputs/incident_20260223-1641271-ezgif.com-video-to-gif-converter.gif)
 
 ```json
 {

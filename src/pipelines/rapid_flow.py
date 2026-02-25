@@ -19,7 +19,12 @@ from src.core.analysis.vlm import VisionReasonerFactory
 
 
 class RapidPipeline:
+    """
+    The main pipeline that orchestrates the entire system.
+    """
     def __init__(self):
+        """Initializes the pipeline."""
+
         logger.info("Initializing Asynchronous Pipeline...")
         
         self.detector = Detector()
@@ -63,6 +68,9 @@ class RapidPipeline:
         self.incident_writer = None
 
     def _analysis_worker(self):
+        """
+        Worker function to analyze clips in the background.
+        """
         while self.running:
             try:
                 tracker_id, clip = self.analysis_queue.get(timeout=0.1)
@@ -93,6 +101,12 @@ class RapidPipeline:
                 logger.error(f"Worker Error: {e}")
 
     def run(self, source_path):
+        """
+        Runs the pipeline on the given source path.
+        
+        Args:
+            source_path: The path to the video file.
+        """
         cap = cv2.VideoCapture(source_path)
         if not cap.isOpened(): 
             logger.error("Failed to open input video.")
@@ -195,7 +209,9 @@ class RapidPipeline:
             logger.info("System shutdown complete.")
 
     def _vlm_worker(self):
-            """Background thread that processes saved incident videos through the Ollama VLM."""
+            """
+            Background thread that processes saved incident videos through the Ollama VLM.
+            """
             while self.running:
                 try:
                     # Sleep and wait for a completed video path to arrive

@@ -19,6 +19,7 @@ data/dataset/*
 !data/inputs/NOTE.txt
 !data/outputs/NOTE.txt
 !data/outputs/incident_20260223-1641271.mp4
+!data/outputs/incident_20260223-1641271-ezgif.com-video-to-gif-converter.gif
 
 # 3. Model Weights (Too big for GitHub)
 models/*.pt

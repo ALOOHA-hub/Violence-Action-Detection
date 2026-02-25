@@ -5,7 +5,9 @@ import time
 from src.utils.logger import logger
 
 class VideoStream:
+    """Reads frames from a video file in a separate thread."""
     def __init__(self, path, queue_size=4):
+        """Initializes the video stream."""
         self.path = path
         self.stopped = False
         self.Q = queue.Queue(maxsize=queue_size)
@@ -46,8 +48,10 @@ class VideoStream:
         return self.Q.get()
 
     def running(self):
+        """Returns True if the video stream is running."""
         return not self.stopped or not self.Q.empty()
 
     def stop(self):
+        """Stops the video stream."""
         self.stopped = True
         self.cap.release()
