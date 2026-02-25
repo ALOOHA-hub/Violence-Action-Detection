@@ -1,19 +1,16 @@
-# 🚨 Violence Action Detection: AI Security Surveillance Pipeline
+# 🚨 Violence Action Detection
 
-**Violence Action Detection** is a multi-modal, asynchronous Vision-Language pipeline designed for privacy-preserving **Edge AI surveillance**. It detects violent physical altercations in real-time, enforces strict state-aware tracking, and automatically generates detailed forensic JSON reports without strictly relying on cloud computation.
-
-By processing CCTV footage locally with the option to use Edge VLMs, this system ensures data privacy and significantly reduces latency, making it ideal for compliant security environments and forensic evidence gathering.
-
+**Violence Action Detection** is a multi-modal, asynchronous Vision-Language pipeline designed for privacy-preserving. It detects violent physical altercations and automatically generates detailed forensic JSON reports.
 ---
 
 
 ---
 
-## 👁️ Overview & Example Output
+## Overview & Example Output
 
 When processing an input video, the system runs. If an altercation is detected, it flags the subjects, locks their bounding boxes, and triggers a Vision-Language Model (VLM) to generate a detailed forensic JSON report.
 
-**Example VLM Forensic Report (`data/outputs/incident_20260223-164127_report.json`)**:
+![Video](./data/outputs/incident_20260223-1641271.mp4)
 
 ```json
 {
@@ -31,7 +28,7 @@ When processing an input video, the system runs. If an altercation is detected, 
   - 🟢 **Green (Safe)**: Normal behavior detected.
   - 🟠 **Orange (Suspicious)**: 3-Strike escalation based on action recognition. Triggers event recording.
 resetting their threat level.
-- **VLM Strategy Pattern**: The Vision-Language Model layer is decoupled via a Factory pattern (`VisionReasonerFactory`), allowing seamless hot-swapping between:
+- **VLM Strategy Pattern**: The Vision-Language Model layer is decoupled via a Factory and Strategy pattern (`VisionReasonerFactory`), allowing seamless hot-swapping between:
   - Local Edge Models (`qwen2.5vl:3b` via Ollama).
   - Cloud API Models (`qwen-vl-max` via DashScope).
 - **Zero-Shot Action Recognition**: Utilizes contrastive text-image pre-training (CoCa ViT-L-14) to dynamically classify behavior from raw text prompts without needing a custom-trained action dataset.
@@ -52,7 +49,7 @@ The pipeline is split into three phases:
 
 ### 3. Phase 3: Forensic Reasoning (The Brain)
 * **Engines**: `Qwen2.5-VL` (Local) or `Qwen-VL-Max` (Cloud API)
-* **Role**: Triggered after an incident recording finishes. Extracts 8 keyframes from the recorded footage and passes them to the VLM. It assesses spatial relationships, identifies context, and outputs a structured **JSON Forensic Report**. If confirmed, the UI locks the subject to **Red**.
+* **Role**: Triggered after an incident recording finishes. Extracts 8 keyframes from the recorded footage and passes them to the VLM. It assesses spatial relationships, identifies context, and outputs a structured **JSON Forensic Report**.
 
 ---
 
@@ -87,7 +84,7 @@ The pipeline is split into three phases:
 - An NVIDIA GPU with CUDA support
 - [Ollama](https://ollama.com/) (Required for Local VLM)
 
-### 2. Clone and Install
+### 2. Set the env & Install the requirements
 ```bash
 # 1. Setup Virtual Environment
 python -m venv venv

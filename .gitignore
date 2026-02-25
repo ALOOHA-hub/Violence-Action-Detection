@@ -16,6 +16,8 @@ data/violent/*
 data/dataset/*
 !data/inputs/.gitkeep
 !data/outputs/.gitkeep
+!data/inputs/NOTE.txt
+!data/outputs/NOTE.txt
 
 # 3. Model Weights (Too big for GitHub)
 models/*.pt
