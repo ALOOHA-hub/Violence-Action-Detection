@@ -18,6 +18,7 @@ data/dataset/*
 !data/outputs/.gitkeep
 !data/inputs/NOTE.txt
 !data/outputs/NOTE.txt
+!data/outputs/incident_20260223-1641271.mp4
 
 # 3. Model Weights (Too big for GitHub)
 models/*.pt
