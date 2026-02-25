@@ -57,10 +57,19 @@ action:
     "a person engaged in normal, non-violent everyday behavior": "safe"
     "unknown_benign_activity": "analyzing..."
 
-
 # Phase 3: Vision-Language Model (Ollama Microservice)
 vlm:
   provider: "local" # Toggle between 'local' or 'cloud'
+
+  # Dynamic Strategy Loading
+  strategies:
+    local:
+      module: "src.core.analysis.vlm.local_strategy"
+      class_name: "LocalOllamaStrategy"
+    cloud:
+      module: "src.core.analysis.vlm.cloud_strategy"
+      class_name: "CloudQwenStrategy"
+
   model_id: "qwen2.5vl:3b"
   cloud_model_id: "qwen-vl-max" # Used if provider is set to 'cloud'
   extraction:
