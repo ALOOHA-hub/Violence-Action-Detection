@@ -67,6 +67,42 @@ class RapidPipeline:
         self.post_alert_counter = 0
         self.incident_writer = None
 
+    def run(self, source_path):
+        """
+        Runs the pipeline on the given source path using a clean, phase-based execution loop.
+        """
+        cap, w, h, out_dir = self._setup_environment(source_path)
+        if not cap:
+            return
+
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret: 
+                    break
+                
+                # 0. Context Maintenance
+                self.frame_buffer.append(frame.copy())
+                
+                # 1. Phase 1: Spatial Perception & Memory
+                detections, ready_clips = self._run_phase1_perception(frame)
+                
+                # 2. Phase 2: Action Recognition Dispatch
+                self._dispatch_phase2_analysis(ready_clips)
+                
+                # 3. Visualization Mapping
+                out_frame = self.visualizer.draw(frame, detections, state_manager=self.state_manager)
+                
+                # 4. Phase 3 & Recording: Evidence Management
+                self._handle_incident_recording(out_frame, w, h, out_dir)
+                
+                # 5. UI Rendering
+                if not self._render_ui(out_frame):
+                    break
+                
+        finally:
+            self._shutdown_pipeline(cap)
+
     def _analysis_worker(self):
         """
         Worker function to analyze clips in the background.
@@ -100,114 +136,6 @@ class RapidPipeline:
             except Exception as e:
                 logger.error(f"Worker Error: {e}")
 
-    def run(self, source_path):
-        """
-        Runs the pipeline on the given source path.
-        
-        Args:
-            source_path: The path to the video file.
-        """
-        cap = cv2.VideoCapture(source_path)
-        if not cap.isOpened(): 
-            logger.error("Failed to open input video.")
-            return
-
-        w, h, fps = int(cap.get(3)), int(cap.get(4)), int(cap.get(5))
-        self.fps_estimate = fps if fps > 0 else 30
-        
-        out_dir = cfg['paths']['output_dir']
-        os.makedirs(out_dir, exist_ok=True)
-        
-        disp_w, disp_h = cfg['system'].get('display_resolution', [1280, 720])
-        logger.info(f"Pipeline started. Monitoring for incidents...")
-        
-        cv2.namedWindow("SentinAI Async System", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
-        cv2.resizeWindow("SentinAI Async System", disp_w, disp_h)
-
-        try:
-            while True:
-                ret, frame = cap.read()
-                if not ret: break
-                
-                # Update Ring Buffer with Raw Frame (Pre-event context)
-                self.frame_buffer.append(frame.copy())
-                
-                detections = self.detector.process_frame(frame)
-                ready_clips = self.memory.update(frame, detections)
-                
-                if ready_clips:
-                    available_ids = list(ready_clips.keys())
-                    self.state_manager.cleanup(available_ids)
-
-                    if available_ids:
-                        idx = self.next_target_index % len(available_ids)
-                        target_id = available_ids[idx]
-                        if not self.analysis_queue.full():
-                            self.analysis_queue.put((target_id, ready_clips[target_id]))
-                            self.next_target_index += 1
-
-                out_frame = self.visualizer.draw(frame, detections, state_manager=self.state_manager)
-                
-               # Recognition logic
-                if self.is_recording_incident:
-                    # Initialize writer if this is the start of an incident
-                    if self.incident_writer is None:
-                        timestamp = time.strftime("%Y%m%d-%H%M%S")
-                        self.current_incident_path = os.path.join(out_dir, f"incident_{timestamp}.mp4")                        
-                        self.incident_writer = cv2.VideoWriter(
-                            self.current_incident_path, cv2.VideoWriter_fourcc(*'mp4v'), self.fps_estimate, (w, h)
-                            )
-                        # Flush the PRE-EVENT buffer to file
-                        for buffered_frame in self.frame_buffer:
-                            self.incident_writer.write(buffered_frame)
-
-                        logger.info(f"Writing incident evidence to {self.current_incident_path}")
-                    
-                    # Write the current frame
-                    self.incident_writer.write(out_frame)
-                    self.post_alert_counter -= 1
-                    
-                    # Finalize clip when aftermath window closes
-                    if self.post_alert_counter <= 0:
-                        self.incident_writer.release()
-                        self.incident_writer = None
-                        self.is_recording_incident = False
-                        logger.info(f"Incident recording finalized: {self.current_incident_path}")
-
-                        # Send to Phase 3
-                        self.vlm_queue.put(self.current_incident_path)
-
-                # UI Indicators
-                status_color = (0, 165, 255) if not self.analysis_queue.empty() else (0, 255, 0)
-                if self.is_recording_incident: status_color = (0, 0, 255) # Red for recording
-                cv2.circle(out_frame, (30, 30), 10, status_color, -1) 
-
-                cv2.imshow("SentinAI Async System", out_frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'): break
-                
-        finally:
-            cap.release()
-
-            # Graceful Shutdown Handoff
-            if self.incident_writer: 
-                self.incident_writer.release()
-                logger.info(f"Incident recording force-finalized due to shutdown: {self.current_incident_path}")
-                self.vlm_queue.put(self.current_incident_path)
-
-
-            cv2.destroyAllWindows()
-
-            # Keep the main program alive just long enough for Ollama to finish its current job
-            # Prevent Race Condition 
-            # Unconditionally block the main thread until the VLM finishes its API calls
-            logger.info("Waiting for Phase 3 VLM to finish generating final reports...")
-            self.vlm_queue.join()
-            
-            # Safe to kill worker loops now
-            self.running = False
-
-            logger.info("System shutdown complete.")
-
     def _vlm_worker(self):
             """
             Background thread that processes saved incident videos through the Ollama VLM.
@@ -240,3 +168,105 @@ class RapidPipeline:
                     continue
                 except Exception as e:
                     logger.error(f"Phase 3 Worker Error: {e}")
+
+    def _setup_environment(self, source_path):
+        cap = cv2.VideoCapture(source_path)
+        if not cap.isOpened(): 
+            logger.error("Failed to open input video.")
+            return None, 0, 0, ""
+
+        w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        self.fps_estimate = fps if fps > 0 else 30
+        
+        out_dir = cfg['paths']['output_dir']
+        os.makedirs(out_dir, exist_ok=True)
+        
+        disp_w, disp_h = cfg['system'].get('display_resolution', [1280, 720])
+        logger.info("Pipeline started. Monitoring for incidents...")
+        
+        cv2.namedWindow("SentinAI Async System", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
+        cv2.resizeWindow("SentinAI Async System", disp_w, disp_h)
+        
+        return cap, w, h, out_dir
+
+    def _run_phase1_perception(self, frame):
+        detections = self.detector.process_frame(frame)
+        ready_clips = self.memory.update(frame, detections)
+        return detections, ready_clips
+
+    def _dispatch_phase2_analysis(self, ready_clips):
+        if not ready_clips:
+            return
+
+        available_ids = list(ready_clips.keys())
+        self.state_manager.cleanup(available_ids)
+
+        if available_ids:
+            idx = self.next_target_index % len(available_ids)
+            target_id = available_ids[idx]
+            if not self.analysis_queue.full():
+                self.analysis_queue.put((target_id, ready_clips[target_id]))
+                self.next_target_index += 1
+
+    def _handle_incident_recording(self, out_frame, w, h, out_dir):
+        if not self.is_recording_incident:
+            return
+
+        # Initialize writer if this is the start of an incident
+        if self.incident_writer is None:
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            self.current_incident_path = os.path.join(out_dir, f"incident_{timestamp}.mp4")                        
+            
+            # Using 'avc1' for H.264 web-safe encoding so it plays perfectly on GitHub
+            self.incident_writer = cv2.VideoWriter(
+                self.current_incident_path, cv2.VideoWriter_fourcc(*'avc1'), self.fps_estimate, (w, h)
+            )
+            # Flush the PRE-EVENT buffer to file
+            for buffered_frame in self.frame_buffer:
+                self.incident_writer.write(buffered_frame)
+
+            logger.info(f"Writing incident evidence to {self.current_incident_path}")
+        
+        # Write the current frame
+        self.incident_writer.write(out_frame)
+        self.post_alert_counter -= 1
+        
+        # Finalize clip when aftermath window closes
+        if self.post_alert_counter <= 0:
+            self.incident_writer.release()
+            self.incident_writer = None
+            self.is_recording_incident = False
+            logger.info(f"Incident recording finalized: {self.current_incident_path}")
+
+            # Send to Phase 3
+            self.vlm_queue.put(self.current_incident_path)
+
+    def _render_ui(self, out_frame):
+        status_color = (0, 165, 255) if not self.analysis_queue.empty() else (0, 255, 0)
+        if self.is_recording_incident: 
+            status_color = (0, 0, 255) # Red for recording
+        
+        cv2.circle(out_frame, (30, 30), 10, status_color, -1) 
+        cv2.imshow("SentinAI Async System", out_frame)
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            return False # Signal to break the loop
+        return True
+
+    def _shutdown_pipeline(self, cap):
+        cap.release()
+
+        # Graceful Shutdown Handoff
+        if self.incident_writer: 
+            self.incident_writer.release()
+            logger.info(f"Incident recording force-finalized due to shutdown: {self.current_incident_path}")
+            self.vlm_queue.put(self.current_incident_path)
+
+        cv2.destroyAllWindows()
+
+        logger.info("Waiting for Phase 3 VLM to finish generating final reports...")
+        self.vlm_queue.join()
+        
+        self.running = False
+        logger.info("System shutdown complete.")
